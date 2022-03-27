@@ -8,10 +8,12 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SupervisorReportController;
+use App\Http\Controllers\VerificationController;
 use Spatie\Permission\Models\Role;
 use Ramsey\Uuid\Uuid;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 // use App\Http\Controllers\UserController;
 header('Access-Control-Allow-Origin:  *');
 header('Access-Control-Allow-Credentials', ' true');
@@ -34,9 +36,22 @@ header('Access-Control-Allow-Headers:  Content-Type, X-Auth-Token, Origin, Autho
 //     return $request->user();
 // });
 Route::post('/register', [AuthController::class, 'register'])->middleware('auth:sanctum');
+Route::post('/register/citizen', [AuthController::class, 'registerCitizen']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/me', [AuthController::class, 'me'])
     ->middleware('auth:sanctum');
+
+    Route::post('/verify-account', [VerificationController::class, 'verifyAccount'])->middleware('auth:sanctum');    
+    Route::get('/resend-verification-code', [VerificationController::class, 'resendVerificationCode'])->middleware('auth:sanctum'); 
+    
+    Route::post('/password-recovery-email-validation', [VerificationController::class, 'sendValidationCodeIfEmailExists']); 
+
+    Route::post('/verify-account/password-recovery', [VerificationController::class, 'verifyAccountPasswordRecovery']); 
+
+    Route::post('/verify-account/password-reset', [VerificationController::class, 'resetAccountPassword']);
+
+
+    
 
 /*project routes*/
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -303,9 +318,9 @@ Route::post('/report', function (Request $request) {
 
     \App\Models\AccessLogReport::create(['action' => "WRITE", 'description' => "Created report", 'user_id' => auth()
         ->user()->id, 'affected_model_id' => $report->id, 'access_log_id' => $accessLogId->id]);
-    if (!$user->hasRole('Ad-hoc')) {
-        abort(403, 'Unauthorized action.');
-    }
+    // if (!$user->hasRole('Ad-hoc') || !$user->hasRole('Citizen')) {
+    //     abort(403, 'Unauthorized action.');
+    // }
     // if (!$project->users()
     //     ->where('user_id', $user->id)
     //     ->exists()) {
@@ -1279,7 +1294,9 @@ Route::post('/user/profile/avatar', function (Request $request) {
         ->user()
         ->hasRole('Staff') && !auth()
         ->user()
-        ->hasRole('Ad-hoc')) {
+        ->hasRole('Ad-hoc')  && !auth()
+        ->user()
+        ->hasRole('Citizen')) {
         abort(403, 'Unauthorized action.');
     }
     $request->validate(['user_id' => 'required', 'photo' => 'required']);
@@ -1308,7 +1325,8 @@ Route::post('/user/profile/avatar', function (Request $request) {
 
 Route::post('/user/contact', function (Request $request) {
     if (!auth()->user()
-        ->hasRole('Ad-hoc')) {
+        ->hasRole('Ad-hoc') && !auth()->user()
+        ->hasRole('Citizen')) {
         abort(403, 'Unauthorized action.');
     }
     \App\Models\Inquiry::create(['message' => $request->message, 'user_id' => $request->user_id]);
@@ -1567,3 +1585,38 @@ Route::get('/supervisor/assigned/state/{state_id}/lgas/', function (Request $req
 
     return response()->json(['success' => true, 'data' => $request->user()->supervisorslga()->where('state_id', $state_id)->get(), 'message' => ""], 200);
 })->middleware('auth:sanctum');
+
+
+Route::get('/reports/{type}', function (Request $request,$type) {
+    if($type=='day'){
+       $reports= \App\Models\Report::where('user_id',$request->user()->id)->whereDate('posted',Carbon::today())->latest()->get();
+        return response()->json(['success' => true, 'data' => $reports, 'message' => "Single Report"], 200); 
+    }
+
+    else if($type=='week'){
+        $reports= \App\Models\Report::where('user_id',$request->user()->id)->whereBetween('posted', 
+        [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]
+    )
+->latest()->get();
+        return response()->json(['success' => true, 'data' => $reports, 'message' => "Single Report"], 200); 
+    }
+
+    else if($type=='month'){
+        $reports= \App\Models\Report::where('user_id',$request->user()->id)->whereMonth('posted', date('m'))
+        ->whereYear('posted', date('Y'))->latest()->get();
+        return response()->json(['success' => true, 'data' => $reports, 'message' => "Single Report"], 200); 
+    }
+
+    else if($type=='all'){
+        $reports= \App\Models\Report::where('user_id',$request->user()->id)->latest()->get();
+        return response()->json(['success' => true, 'data' => $reports, 'message' => "Single Report"], 200); 
+    }
+    
+    })->middleware('auth:sanctum');
+
+
+Route::get('/report/{uuid}', function (Request $request,$uuid) {
+$report= \App\Models\Report::where('uuid',$uuid)->first();
+    return response()->json(['success' => true, 'data' => $report, 'message' => "Single Report"], 200);
+})->middleware('auth:sanctum');
+

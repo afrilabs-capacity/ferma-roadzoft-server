@@ -17,6 +17,10 @@ use Illuminate\Support\Facades\DB;
 
 Route::get('/', function () {
 
+
+    //    return (new App\Notifications\AccountVerification(App\Models\User::find(1)))
+    //   ->toMail(App\Models\User::find(1));
+
   // $data = '[
   //     {
   //       "Abia": [

@@ -14,9 +14,10 @@ use Hash;
 use App\Models\State;
 use App\Models\LocalGovernment;
 
+
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes,Notifiable;
 
     /**
      * The attributes that are mass assignable.
