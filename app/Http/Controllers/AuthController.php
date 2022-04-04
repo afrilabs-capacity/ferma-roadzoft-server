@@ -61,7 +61,7 @@ class AuthController extends Controller
         $role = Role::findOrFail(5);
         $user->assignRole($role);
         $verification= Verification::create(['user_id'=>$user->id,'otp'=>rand(111111, 999999)]);
-        //$user->notify(new AccountVerification($user,$verification));
+        $user->notify(new AccountVerification($user,$verification,"You recently registered on the Roadzoft Citizens App. please find your verification code below."));
         $token = $user->createToken('auth_token')->plainTextToken;
         if (!Auth::attempt($request->only('email', 'password')))
         {
